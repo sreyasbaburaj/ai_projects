@@ -35,3 +35,55 @@ if not cap.isOpened():
     print("Error: Could not access webcam");
     exit
 cv2.namedWindow(MAIN, cv2.WINDOW_NORMAL)
+
+while True:
+    if paused:
+        cv2.imshow(MAIN, freeze)
+        k=cv2.waitKey(50) & 0xFF
+        if k==ord("q"): break
+        if k==27:
+            paused=False; pinch_on=False
+            try: cv2.destroyAllWindows(POP)
+            except: pass
+            continue
+        try:
+            if cv2.getWindowProperty(POP, cv2.WND_PROP_VISIBLE) <= 0: paused=False; pinch_on=False
+        except cv2.error:
+            paused=False; pinch_on=False
+        continue
+
+    ok, img=cap.read()
+    if not ok: break
+    img=cv2.flip(img,1); h,w=img.shape[:2]
+    res=hands.process(cv2.cvtColor(img,cv2.COLOR_BGR2RGB))
+    now=time.time(); capture=False
+
+    if res.multi_hand_landmarks:
+        hand=res.multi_hand_landmarks[0]; draw.draw_landmarks(img, hand, H.HAND_CONNECTIONS)
+        lm=hand.landmark; tips={k:(int(lm[v].x*w), int(lm[v].y*h)) for k,v in ids.items()}
+        tx,ty=tips["thumbs"]; ix,iy=tips["index"]
+        pinch=abs(tx-ix) < TP and abs(ty-iy) < TP
+        if pinch and not pinch_on and now-lc > CAP:
+            pinch_on=True;
+            capture=True;
+            lc=now
+        if not pinch and pinch_on:
+            pinch_on=False
+        if not pinch:
+            t=next((k for k in pairs if abs(tx-tips[k][0]) < TT and abs(ty-tips[k][1]) < TT), None)
+            if t and now-la > DEB: cur = pairs[t][st[t]]; st[t] ^= 1; la = now; print("Filter:", cur)
+
+    out=apply(img,cur)
+    if cur=="EDGE": out=cv2.cvtColor(out, cv2.COLOR_GRAY2BGR)
+
+    if capture:
+        name=f"picture_{int(now)}.jpg"; cv2.imwrite(name, out); print("Saved:", name)
+        paused, freeze =True, out.copy(); cv2.imshow(POP, freeze)
+
+    cv2.imshow(MAIN, out)
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+cap.release();
+cv2.destroyAllWindows();
+hands.close()
