@@ -38,3 +38,28 @@ def ask_image():
             print("Corrupted Image.")
             continue
         return p
+
+def infer(path,img_bytes, tries=8):
+    mime,_=mimetypes.guess_typ(path)
+    for _ in range(tries):
+        if mime and mime.startswith("image/"):
+            r=requests.post(API,headers={"Authorization":f"Bearer {HF_API_KEY}","Content-Type":mime},data=img_bytes, timeout=60)
+
+        else:
+             r=requests.post(API,headers={"Authorization":f"Bearer {HF_API_KEY}"}, files={"inputs":(os.path.basename(path),img_bytes, "application/octet.stream" )}, timeout=60)
+
+        if r.status_code==200:
+            d=r.json()
+            if isinstance(d, dict) and "error" in d:
+                raise RuntimeError(d["error"])
+            if not isinstance(d,list):
+                raise RuntimeError("Bad API response.")
+            return d
+        if r.status_code==503:
+            time.sleep(2)
+            continue
+        raise RuntimeError(f"API {r.status_code}: {r.text[:300]}")
+    raise RuntimeError("Model warm up timeout.")
+
+def draw(img,dets,thr=0.5):
+    d=ImageDraw
