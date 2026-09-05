@@ -8,8 +8,9 @@ init(autoreset=True)
 ROUTER_URL="https://router.huggingface.co/v1/chat/completions"
 HEADERS={"Authorization":f"Bearer {HF_API_KEY}", "Content-Type":"application/json"}
 VISION_MODELS=[
-    "moonshotai/kIMI-k2.6",
-    "meta-llama/Llama-4-Maverick-17B-128E-Instruct"
+    "moonshotai/Kimi-K2.6:novita",
+    "meta-llama/Llama-4-Maverick-17B-128E-Instruct",
+    "meta-llama/Llama-3.2-11B-Vision-Instruct",
 ]
 
 TEXT_MODELS = [
@@ -48,7 +49,7 @@ def _extract_text(data) -> str:
 def _run_models(models, messages, max_tokens=160, temperature=0.3):
     last_err=None
     for model in models:
-        data,err=query_hf_api({"model":model,"messages":messages, "max_tokens": max_tokens, "response":temperature})
+        data,err=query_hf_api({"model":model ,"messages":messages, "max_tokens": max_tokens, "temperature":temperature})
         if err:
             last_err=err
             continue
@@ -56,7 +57,7 @@ def _run_models(models, messages, max_tokens=160, temperature=0.3):
         if out:
             return out, None
         last_err="Empty response from model"
-        return None, last_err or "All models failed."
+    return None, last_err or "All models failed."
 
 def _words(text: str):
     return re.findall(r"\S+", (text or "").strip())
@@ -79,7 +80,7 @@ def get_basic_caption(image_path: str) -> str:
             {"type": "image_url", "image_url": {"url":_data_url(image_path)}},
         ],
     }]
-    cap, err = _run_models(VISION_MODELS, msgs, max_tokens=90, temperature=0.2)
+    cap,err = _run_models(VISION_MODELS,msgs,max_tokens=90,temperature=0.2)
     return cap if cap else f"[Error] {err}"
 
 def main():
@@ -116,7 +117,7 @@ def main():
                 print(f"{Fore.RED}Caption (5 words): {Style.BRIGHT}{basic_caption}\n")
             else:
                 out=_ensure_sentence_end(_exact_n_words(basic_caption, 5))
-                print(f"{Fore.GREEN} Caption (5 words): {Fore.Yellow}{Style.BRIGHT}{out}\n")
+                print(f"{Fore.GREEN} Caption (5 words): {Fore.YELLOW}{Style.BRIGHT}{out}\n")
         elif choice=="2":
             print(f"{Fore.CYAN}Exiting the program. Goodbye!")
             break
