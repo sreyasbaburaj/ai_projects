@@ -1,6 +1,6 @@
 import speech_recognition as sr
 import pyttsx3
-from googletrans import Translater
+from googletrans import Translator
 
 def speak(text,language="en"):
     engine=pyttsx3.init()
@@ -35,7 +35,7 @@ def speech_to_text():
 
 def translate_text(text,target_language="es"):
     translator=Translator()
-    translation=Translator.translate(text,dest=target_language)
+    translation=translator.translate(text,dest=target_language)
     print(f"???? Translated text: {translation.text}")
     return translation.text
 
@@ -50,4 +50,27 @@ def display_language_options():
     print("7.Malayalam (ml)")
     print("8.Punjabi (pa)")
 
-    choice=input(please)
+    choice=input("Please select the target language number (1-8): ")
+    language_dict={
+        "1":"hi",
+        "2":"ta",
+        "3":"te",
+        "4":"bn",
+        "5":"mr",
+        "6":"gu",
+        "7":"ml",
+        "8":"pa"
+    }
+
+    return language_dict.get(choice, "es")
+
+def main():
+    target_language=display_language_options()
+    original_text=speech_to_text()
+    if original_text:
+        translated_text=translate_text(original_text, target_language=target_language)
+        speak(original_text, language="en")
+        print("Translation spoken out!")
+
+if __name__=="__main__":
+    main()
