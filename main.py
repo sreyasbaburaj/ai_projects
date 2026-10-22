@@ -1,24 +1,26 @@
 from groq import generate_response
+import time
 
-def prompt_engineering_activity():
-    print("Welcome to the AI Prompt Engineering Tutorial!")
+def temperature_prompt_activity():
+    print("="*70)
+    print("ADVANCED PROMPT ENGINEERING: TEMPERATURE + INSTRUCTIONS")
+    print("="*70)
 
-    vague=input("Enter a vague promtp: ")
-    print("\nAi's response to vague prompt: ")
-    print(generate_response(vague))
+    print("\nPART 1: TEMPERATURE EXPLORATION")
+    base=input("Enter a creative prompt: ").strip()
 
-    specific=input("\nNow make it more specific: ")
-    print("\nAI's response to specific prompt: ")
-    print(generate_response(specific))
+    for t, label in [(0.1,"LOW (0.1) - Deterministic"),
+                     (0.5, "MEDIUM (0.5) - Balanced"),
+                     (0.9, "HIGH (0.9) - Creative")]:
+        print(f"\n--- {label} ---")
+        print(generate_response(base, temperature=t, max_tokens=512))
+        time.sleep(1)
 
-    context=input("\nNow add context to your specific prompt: ")
-    print("\nAI's response to contextual prompt: ")
-    print(generate_response(context))
-
-    print("/n--- Reflection ---")
-    print("1.How did the AI's response change when the prompt was made more specific?")
-    print("2.How did the AI's response improve with the added context?")
-    print("3.Which promp produced the most relevant and tailored response? Why/")
-
-if __name__=="__main__":
-    prompt_engineering_activity()
+    print("\nPART 2: INSTRUCTION-BASED PROMPTS")
+    topic=input("Choose a topic (e.g., climate change, space exploration): ").strip()
+    prompts=[
+        f"Summarize key facts about {topic} in 3-4 sentences.",
+        f"Explain {topic} as if I'm a 10-year-old child.",
+        f"Write a pro/con list about {topic}"
+            
+        ]
