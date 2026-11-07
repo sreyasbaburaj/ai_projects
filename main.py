@@ -1,57 +1,74 @@
 from groq import generate_response
 
-def bias_mitigation_activity():
-    print("\n=== BIAS MITIGATION ACTIVITY ===\n")
-    prompt=input("Enter a prompt to explore bias (eg., 'Describe the ideal doctor'): ").strip()
-    if not prompt:
-        print("Please enter a prompt to run the activity")
-        return
+def get_essay_details():
+    print("\n=== AI WRITING ASSISTANT ===\n")
+    topic=input("What is the topic of your essay?").strip()
+    essay_type=input("What type of essay are you writing?").strip()
+    lengths=["300 words", "900 words", "1200 words", "2000 words"]
+    print("Select essay word count: ")
+    for i,l in enumerate(lengths,1):
+        print(f"{i}) {l}")
+    try:
+        idx=int(input("> ").strip())
+        length=length[idx-1] if 1 <= idx <= len(lengths) else "300 words"
+    except ValueError:
+        length="300 words"
+    target_audience=input("target audience (e.g., High School Students): ").strip()
+    return {"topic":topic,"essay_type":essay_type,"length":length,"target_audience":target_audience}
 
-    initial_response=generate_response(prompt, temperature=0.3, max_tokens=1024)
-    print(f"\nInitial AI response: {initial_response}")
+def generate_essay_content(details):
+    try:
+        temp=float(input("Enter temperature (0.1 structured, 0.7 creative): ").strip())
+        if not (0.0<= temp <= 1.0): raise ValueError
+    except ValueError:
+        print("Invalid temperature. Using 0.3.")
+        temp=0.3
 
-    modified_prompt = input(
-       "Modify the prompt to make it more neutral(e.g.,'Describe the qualities of a doctor.'): "
-    ).strip()
-    if modified_prompt:
-        modified_response=generate_response(modified_prompt,temperature=0.3, max_tokens=1024)
-        print(f"\nModified AI response(Neutral): {modified_response}")
+    intro_p=f"Write an introduction for an {details["essay_type"]} essay about {details["topic"]}."
+    intro=generate_response(intro_p,temperature=temp, max_tokens=1024)
+    print("\nWould you like the body written as a full draft or step by step?")
+    print("1) Full draft\n2) Step by step")
+    choice=input("> ").strip()
 
+    if choice == "1":
+        body_p=f"Write a full body for an essay on{details["topic"]} with the stance of {details["target_audience"]}."
+        body=generate_response(body_p,temperature=temp,max_tokens=1024)
+        print("\n=== GENERATE FULL BODY ===\n")
+        print(body)
     else:
-        print("No modified prompt entered. Skipping neutral response.")
+        step_p=f"Write step by step arguments for an essay on {details["topic"]}. Provide evidence and reasoning."
+        body_step=generate_response(step_p,temperature=temp,max_tokens=1024)
+        print("\n=== GENERATE STEP BY STEP BODY ===\n")
+        print(body_step)
 
-def token_limit_activity():
-    print("\n=== TOKEN LIMIT ACTIVITY ===\n")
-    long_prompt=input(
-        "Enter a long prompt (more than 300 words, eg., a detailed story): "
-    ).strip()
+    concl_p=f"Write a conclusion for an {details["essay_type"]} essay about {details["topic"]} witht the stance of {details["target_audience"]}."
+    concl=generate_response(concl_p,temperature=temp, max_tokens=1024)
+    print("\n=== GENERATE CONCLUSION ===\n")
+    print(concl)
 
-    if long_prompt:
-        long_response=generate_response(long_prompt,temperature=0.3,max_tokens=1024)
-        preview=(long_response[:500] + "...") if len(long_response) > 500 else long_response
-        print(f"Response to Long Prompt: {preview}")
+def feedback_and_refinement():
+    try:
+        rating=int(input("\nRate satisfaction (1-5): ").strip())
+        if rating < 1 or rating > 5:
+            raise ValueError
+    except ValueError:
+        print("Invalid rating. Using 3")
+        rating=3
+
+    if rating!= 5:
+        feedback=input("Provide feedback (tone, structure, etc): ").strip()
+        print(f"\nThank you for the feedback: {feedback}")
     else:
-        print("No long prompt entered. Skipping long prompt response.")
-
-    short_prompt=input("Now, condense the prompt to be more concise: ").strip()
-    if short_prompt:
-        short_response=generate_response(short_prompt,temperature=0.3,max_tokens=1024)
-        print(f"\nResponse to Condensed Prompt: {short_response}")
-    else:
-        print("No condensed prompt entered. Skipping condensed prompt response.")
+        print("\nThank you! The essay looks good.")
 
 def run_activity():
-    print("\n=== AI LEARING ACTIVITY ===")
-    print("Choose an activity:")
-    print("1) Bias Mitigation")
-    print("2) Token Limits")
-    choice=input(">").strip()
-    if choice == "1":
-        bias_mitigation_activity()
-    if choice == "2":
-        token_limit_activity()
-    else:
-        print("Invalid choice. Please choose 1 or 2.")
+    print("\nWelcome to the AI Writing Assistant!")
+    details=get_essay_details()
+    if not details["topic"] or not details["essay-type"]:
+        print("Please provide at least a topic and essay type to continue.")
+        return
+    generate_essay_content(details)
+    feedback_and_refinement()
 
 if __name__=="__main__":
     run_activity()
