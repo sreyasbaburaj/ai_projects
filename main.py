@@ -1,74 +1,58 @@
 from groq import generate_response
+import re
+import streamlit as st
 
-def get_essay_details():
-    print("\n=== AI WRITING ASSISTANT ===\n")
-    topic=input("What is the topic of your essay?").strip()
-    essay_type=input("What type of essay are you writing?").strip()
-    lengths=["300 words", "900 words", "1200 words", "2000 words"]
-    print("Select essay word count: ")
-    for i,l in enumerate(lengths,1):
-        print(f"{i}) {l}")
-    try:
-        idx=int(input("> ").strip())
-        length=length[idx-1] if 1 <= idx <= len(lengths) else "300 words"
-    except ValueError:
-        length="300 words"
-    target_audience=input("target audience (e.g., High School Students): ").strip()
-    return {"topic":topic,"essay_type":essay_type,"length":length,"target_audience":target_audience}
+def looks_incomplete(text: str)->bool:
+    if not text or len(text.strip())<10:
+        return True
+    t=text.strip()
+    if t.endswith(("**","*","-","=",":",",","(","{","[")):
+        return True
+    if re.search(r"\d+\.|s*\*\*$", t):
+        return True
+    if not re.search(r"[.!?]\s*$", t):
+        return True
+    return False
 
-def generate_essay_content(details):
-    try:
-        temp=float(input("Enter temperature (0.1 structured, 0.7 creative): ").strip())
-        if not (0.0<= temp <= 1.0): raise ValueError
-    except ValueError:
-        print("Invalid temperature. Using 0.3.")
-        temp=0.3
+def complete_answer(question: str, max_rounds: int = 2) -> str:
+    base_prompt=(
+        "Answer clearly in numbered points."
+        "Do not cut sentences. Finish each point fully.\n\n"
+        f"Question: {question}"
+    )
 
-    intro_p=f"Write an introduction for an {details["essay_type"]} essay about {details["topic"]}."
-    intro=generate_response(intro_p,temperature=temp, max_tokens=1024)
-    print("\nWould you like the body written as a full draft or step by step?")
-    print("1) Full draft\n2) Step by step")
-    choice=input("> ").strip()
+    ans=generate_response(base_prompt, temperature=0.3, max_tokens=1024)
 
-    if choice == "1":
-        body_p=f"Write a full body for an essay on{details["topic"]} with the stance of {details["target_audience"]}."
-        body=generate_response(body_p,temperature=temp,max_tokens=1024)
-        print("\n=== GENERATE FULL BODY ===\n")
-        print(body)
+    rounds=0
+    while rounds < max_rounds and looks_incomplete(ans):
+        cont_prompt=(
+            "Continue EXACTLY from where you stopped."
+            "Do NOT repeat earlier text."
+            "Finish the incomplete point and complete answer.\n\n"
+            f"Question: {question}\n\n"
+            f"Answer so far:\n{ans}\n\nContinue:"
+        )
+        more = generate_response(cont_prompt,temperature=0.3,max_tokens=1024)
+        if not more or more.strip() in ans:
+            break
+        ans=(ans.rstrip() + "\n" + more.lstrip()).strip()
+        rounds+=1
+
+    return ans
+
+def main():
+    st.title("AI Teaching Assistant")
+    st.write("Welcome! You can ask me anything about various subjects and I'll provide an answer")
+
+    user_input=st.text_input("Enter your question here: ")
+
+    if user_input:
+        st.write(f"**Your question:** {user_input}")
+        response=complete_answer(user_input)
+        st.write("**AI's answer:**")
+        st.markdown(response)
     else:
-        step_p=f"Write step by step arguments for an essay on {details["topic"]}. Provide evidence and reasoning."
-        body_step=generate_response(step_p,temperature=temp,max_tokens=1024)
-        print("\n=== GENERATE STEP BY STEP BODY ===\n")
-        print(body_step)
+        st.info("Please enter a question to ask")
 
-    concl_p=f"Write a conclusion for an {details["essay_type"]} essay about {details["topic"]} witht the stance of {details["target_audience"]}."
-    concl=generate_response(concl_p,temperature=temp, max_tokens=1024)
-    print("\n=== GENERATE CONCLUSION ===\n")
-    print(concl)
-
-def feedback_and_refinement():
-    try:
-        rating=int(input("\nRate satisfaction (1-5): ").strip())
-        if rating < 1 or rating > 5:
-            raise ValueError
-    except ValueError:
-        print("Invalid rating. Using 3")
-        rating=3
-
-    if rating!= 5:
-        feedback=input("Provide feedback (tone, structure, etc): ").strip()
-        print(f"\nThank you for the feedback: {feedback}")
-    else:
-        print("\nThank you! The essay looks good.")
-
-def run_activity():
-    print("\nWelcome to the AI Writing Assistant!")
-    details=get_essay_details()
-    if not details["topic"] or not details["essay-type"]:
-        print("Please provide at least a topic and essay type to continue.")
-        return
-    generate_essay_content(details)
-    feedback_and_refinement()
-
-if __name__=="__main__":
-    run_activity()
+if __name__ == "__main__":
+    main()
