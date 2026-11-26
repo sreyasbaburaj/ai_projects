@@ -1,83 +1,47 @@
 from groq import generate_response
-import io
-import streamlit as st
 
-CSS = """
+import io, streamlit as st
 
-<style>
+SYSTEM_PROMPT="""You are a Math Mastermind. For every math problem:
 
-.history-wrap {max-height: 420px; overflow-y: auto; padding-right: 6px;}
+1) Show step-by-step solution 2) Explain reasoning 3) Give alternate method if possible
 
-.qa-card{
+4) Verify answer if possible 5) Use proper notation 6) Break complex problems into parts
 
-border: 1px solid #e6e6e6;
+Format: Problem → Steps → **Final Answer** → Concepts used. Be precise and educational."""
 
-background: #ffffff;
+def math_generate(problem:str,level:str,temperature=0.1,max_tokens=1024) -> str:
+    prompt=f"{SYSTEM_PROMPT}\n\nMath Problem ({level}): {problem}"
+    return generate_response(prompt, temperature=temperature, max_tokens=1024)
 
-border-radius: 10px;
-
-padding: 14px 16px;
-
-margin: 10px 0;
-
-box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-
-}
-
-.q{font-weight: 700; color: #0a6ebd; margin-bottom: 8px;}
-
-.a{white-space: pre-wrap; color: #333; line-height: 1.5;}
-
-</style>
-
-"""
-
-def export_bytes(history):
-    text="".join([f"Q{i}: {h['question']}\nA{i} : {h['answer']}\n\n" for i,h in enumerate(history,1)])
-    return io.BytesIO(text.encode("utf-8"))
+def export_txt(history):
+    txt="\n\n".join([f"q{i}: {h['q']}\nA{i}: {h['a']}" for i,h in enumerate(history,1)])
+    return io.BytesIO(txt.encode("utf-8"))
 
 def setup_ui():
-    st.set_page_config(page_title="AI Teaching Assistant", layout="centered")
-    st.title("AI Teaching Assistant")
-    st.write("Ask me anything about various subjects, and I'll provide an insightful answer.")
-    st.session_state.setdefault("history", [])
+    st.set_page_config(page_title="Math Mastermind", layout="centered")
+    st.title("Math Mastermind")
+    st.write("Solve any math problem with detailed step-by-step explanation.")
 
-    col_clear, col_export=st.columns([1,2])
-    with col_clear:
-        if st.button("Clear Conversation"):
-            st.session_state.history=[]
-            st.rerun()
+    with st.expander("Examples"):
+        st.markdown(
+            '- Algebra: "Solve 2x² + 5x − 3 = 0"\n'
 
-    with col_export:
+            '- Calculus: "Derivative of sin(x²) + ln(x)"\n'
+
+            '- Geometry: "Area of triangle (0,0),(3,4),(6,0)"\n'
+
+            '- Probability: "P(sum=7 with two dice)"')
+
+        st.session_state.setdefault("history", [])
+        st.session_state.setdefault("k", 0)
+
+        c1,c2=st.columns([1,2])
+        if c1.button("Clear"):
+            st.session_state.history=[]; st.rerun()
+
         if st.session_state.history:
-            st.download_button(
-                label="Export Chat History",
-                data=export_bytes(st.session_state.history),
-                file_name="AI_Teaching_Assistant_Conversation.txt",
-            )
+            c2.download_button("Export", export_txt(st.session_state.history),
+                               "Math_Mastermind_solutions.txt", "text/plain")
 
-    user_input=st.text_input("Enter your question here:")
-    if st.button("Ask"):
-        q=user_input.strip()
-        if q:
-            with st.spinner("Generating AI response..."):
-                a=generate_response(q,temperature=0.3)
-            st.session_state.history.insert(0,{"question": q, "answer":a})
-            st.rerun()
-
-        else:
-            st.warning("Please enter a question before clicking ask.")
-
-    st.markdown("### Conversation History")
-    st.markdown(CSS, unsafe_allow_html=True)
-
-    cards=[]
-    for i, h in enumerate(st.session_state.history, 1):
-        cards.append(f'<div class="qa-card"><div class="q">Q{i}: {h["question"]}</div><div class="a">{h["answer"]}</div></div>')
-    st.markdown('<div class="history-wrap">' + "".join(cards) + "</div>", unsafe_allow_html=True)
-
-def main():
-    setup_ui()
-
-if __name__ =="__main__":
-    main()
+        with st.form
