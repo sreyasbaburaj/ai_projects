@@ -1,47 +1,60 @@
-from groq import generate_response
+from io import BytesIO
+import requests
+import streamlit as st
+from huggingface_hub import InferenceClient
 
-import io, streamlit as st
+import config
 
-SYSTEM_PROMPT="""You are a Math Mastermind. For every math problem:
+MODEL_ID="stabilityai/stable-diffusion-3-medium-diffusers"
+FILTER_API_URL="https://filters-zeta.vercel.app/api/filter"
 
-1) Show step-by-step solution 2) Explain reasoning 3) Give alternate method if possible
+ENHANCE_SYS="""
+You are an expert text-to-image prompt enhancer.
 
-4) Verify answer if possible 5) Use proper notation 6) Break complex problems into parts
+Return ONLY the enhanced image prompt.
 
-Format: Problem → Steps → **Final Answer** → Concepts used. Be precise and educational."""
+Instructions:
 
-def math_generate(problem:str,level:str,temperature=0.1,max_tokens=1024) -> str:
-    prompt=f"{SYSTEM_PROMPT}\n\nMath Problem ({level}): {problem}"
-    return generate_response(prompt, temperature=temperature, max_tokens=1024)
+- Preserve the exact subject and meaning of the user's prompt.
 
-def export_txt(history):
-    txt="\n\n".join([f"q{i}: {h['q']}\nA{i}: {h['a']}" for i,h in enumerate(history,1)])
-    return io.BytesIO(txt.encode("utf-8"))
+- Improve visual details, composition, lighting, colors and background.
 
-def setup_ui():
-    st.set_page_config(page_title="Math Mastermind", layout="centered")
-    st.title("Math Mastermind")
-    st.write("Solve any math problem with detailed step-by-step explanation.")
+- Do not introduce new subjects or unrelated concepts.
 
-    with st.expander("Examples"):
-        st.markdown(
-            '- Algebra: "Solve 2x² + 5x − 3 = 0"\n'
+- Do not add unnecessary descriptions.
 
-            '- Calculus: "Derivative of sin(x²) + ln(x)"\n'
+- Use neutral, clear and visually descriptive language.
 
-            '- Geometry: "Area of triangle (0,0),(3,4),(6,0)"\n'
+- Never add violent, disturbing or unrelated themes.
 
-            '- Probability: "P(sum=7 with two dice)"')
+- Keep the prompt concise and suitable for image generation.
+"""
 
-        st.session_state.setdefault("history", [])
-        st.session_state.setdefault("k", 0)
+NEGATIVE="low quality, blurry, distorted, watermark, text, cropped"
 
-        c1,c2=st.columns([1,2])
-        if c1.button("Clear"):
-            st.session_state.history=[]; st.rerun()
+img_client=InferenceClient(provide="hf-inference", api_key=config.HF_API_KEY)
 
-        if st.session_state.history:
-            c2.download_button("Export", export_txt(st.session_state.history),
-                               "Math_Mastermind_solutions.txt", "text/plain")
+def check_prompt_with_filter_api(promt: str):
+    try:    
+        response=requests.post(FILTER_API_URL,json={"prompt": prompt},timeout=30)
+        response.raise_for_status()
+        data=response.json()
 
-        with st.form
+        if not isinstance(data, dict):
+            return {"ok":False, "reason": "Invalid filter API response."}
+
+        return data
+    except Exception as e:
+        return {
+        "ok": False, "reason": f"Filter API error : {str(e)}"
+    }
+
+def enhance_prompt(raw:str)->str:
+    from hf import generate_response
+
+    out=generate_response(
+        f"{ENHANCE_SYS}\nUserprompt: {raw}",
+        temperature=0.3,
+        max_tokens=220
+    )
+    return (out or raw).strip()
